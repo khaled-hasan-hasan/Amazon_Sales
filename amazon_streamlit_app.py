@@ -509,60 +509,66 @@ def create_customer_insights(df):
     </div>
     """, unsafe_allow_html=True)
 
+# Around line 520-540, replace with:
 def create_pricing_strategy(df):
-    """Create pricing strategy analysis"""
-    st.markdown("## 💰 Pricing Strategy Analysis")
-
-    # Price range analysis
-    st.markdown("### 📊 Revenue by Price Range")
-
-    price_analysis = df.groupby('price_range').agg({
+    st.subheader("💰 Pricing Strategy Analysis")
+    
+    # Create price categories
+    df['price_category'] = pd.cut(
+        df['discounted_price_clean'],
+        bins=[0, 1000, 5000, 20000, 100000],
+        labels=['Budget (<₹1K)', 'Mid-Range (₹1K-5K)', 
+                'Premium (₹5K-20K)', 'Luxury (>₹20K)']
+    )
+    
+    # Calculate metrics
+    price_stats = df.groupby('price_category').agg({
         'product_id': 'count',
-        'estimated_revenue': 'sum',
         'rating': 'mean',
-        'discount_percentage': 'mean'
-    }).round(2)
-
-    price_analysis.columns = ['Product_Count', 'Revenue', 'Avg_Rating', 'Avg_Discount']
-
+        'rating_count_clean': 'sum',
+        'discounted_price_clean': 'mean'
+    }).reset_index()
+    
+    price_stats.columns = ['Category', 'Products', 'Avg_Rating', 
+                          'Total_Reviews', 'Avg_Price']
+    
+    # Visualization
     col1, col2 = st.columns(2)
-
+    
     with col1:
-        fig = px.bar(
-            x=price_analysis.index,
-            y=price_analysis['Revenue']/100000,
-            title="Revenue by Price Range (₹ Lakhs)",
-            color=price_analysis['Revenue'],
+        fig1 = px.bar(
+            price_stats, 
+            x='Category', 
+            y='Products',
+            title='Products by Price Category',
+            color='Products',
             color_continuous_scale='Blues'
         )
-        st.plotly_chart(fig, use_container_width=True)
-
+        fig1.update_xaxes(tickangle=45)
+        st.plotly_chart(fig1, use_container_width=True)
+    
     with col2:
-        fig = px.scatter(
-            price_analysis,
-            x='Avg_Discount',
+        fig2 = px.bar(
+            price_stats, 
+            x='Category', 
             y='Avg_Rating',
-            size='Product_Count',
-            hover_name=price_analysis.index,
-            title="Discount vs Rating by Price Range"
+            title='Average Rating by Price Category',
+            color='Avg_Rating',
+            color_continuous_scale='RdYlGn'
         )
-        st.plotly_chart(fig, use_container_width=True)
+        fig2.update_xaxes(tickangle=45)
+        st.plotly_chart(fig2, use_container_width=True)
+    
+    # Display table
+    st.dataframe(
+        price_stats.style.format({
+            'Avg_Rating': '{:.2f}',
+            'Avg_Price': '₹{:,.0f}',
+            'Total_Reviews': '{:,.0f}'
+        }),
+        use_container_width=True
+    )
 
-    # Pricing insights
-    premium_revenue = price_analysis.loc[price_analysis.index.isin(['Premium', 'Luxury']), 'Revenue'].sum()
-    total_revenue = price_analysis['Revenue'].sum()
-    premium_share = (premium_revenue / total_revenue) * 100
-
-    st.markdown(f"""
-    <div class="insight-box">
-        <h3>💰 Pricing Strategy Insights</h3>
-        <ul>
-            <li>Premium + Luxury products generate <strong>{premium_share:.1f}%</strong> of revenue</li>
-            <li>Price-rating correlation: <strong>{df['discounted_price'].corr(df['rating']):.3f}</strong> (weak)</li>
-            <li>Opportunity for premium pricing strategy due to low price sensitivity</li>
-        </ul>
-    </div>
-    """, unsafe_allow_html=True)
 
 def create_recommendations(df):
     """Create strategic recommendations"""
