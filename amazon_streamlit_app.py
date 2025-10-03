@@ -255,74 +255,48 @@ if st.sidebar.checkbox("Apply Filters"):
 # =============================================================================
 
 def create_executive_overview(df):
-    """Create executive overview dashboard"""
-    st.markdown("## 📊 Executive Overview")
-
-    # Key metrics
-    col1, col2, col3, col4 = st.columns(4)
-
-    with col1:
+    st.subheader("📊 Executive Overview")
+    
+    try:
+        # Safely calculate all metrics
         total_products = len(df)
-        st.metric(
-            label="Total Products",
-            value=f"{total_products:,}",
-            delta=f"{total_products - 800:,} vs baseline"
-        )
+        
+        avg_rating = float(df['rating'].mean()) if 'rating' in df.columns and not df['rating'].isna().all() else 0.0
+        
+        if 'discounted_price_clean' in df.columns:
+            total_revenue = float(df['discounted_price_clean'].sum())
+        else:
+            total_revenue = 0.0
+        
+        if 'rating_count_clean' in df.columns:
+            total_reviews = int(df['rating_count_clean'].sum())
+        else:
+            total_reviews = 0
+        
+        total_categories = int(df['main_category'].nunique()) if 'main_category' in df.columns else 0
+        
+        # Display KPIs
+        col1, col2, col3, col4, col5 = st.columns(5)
+        
+        with col1:
+            st.metric("Total Products", f"{total_products:,}")
+        
+        with col2:
+            st.metric("Avg Rating", f"{avg_rating:.2f} ⭐")
+        
+        with col3:
+            st.metric("Total Value", f"₹{total_revenue/100000:.1f}L")
+        
+        with col4:
+            st.metric("Total Reviews", f"{total_reviews:,}")
+        
+        with col5:
+            st.metric("Categories", f"{total_categories}")
+            
+    except Exception as e:
+        st.error(f"Error calculating metrics: {str(e)}")
+        st.info("Please check your data columns")
 
-    with col2:
-        total_revenue = df['estimated_revenue'].sum()
-        st.metric(
-            label="Total Revenue",
-            value=f"₹{total_revenue/100000:.1f}L",
-            delta=f"₹{(total_revenue * 0.15)/100000:.1f}L potential"
-        )
-
-    with col3:
-        avg_rating = df['rating'].mean()
-        st.metric(
-            label="Average Rating",
-            value=f"{avg_rating:.2f}",
-            delta=f"{avg_rating - 4.0:.2f} above 4.0"
-        )
-
-    with col4:
-        top_category_share = df['main_category'].value_counts().iloc[0] / len(df) * 100
-        st.metric(
-            label="Top Category Share", 
-            value=f"{top_category_share:.1f}%",
-            delta="Concentration risk"
-        )
-
-    # Revenue by category
-    st.markdown("### 🏷️ Revenue Distribution by Category")
-    category_revenue = df.groupby('main_category')['estimated_revenue'].sum().sort_values(ascending=False)
-
-    fig = px.bar(
-        x=category_revenue.values/100000,
-        y=category_revenue.index,
-        orientation='h',
-        title="Revenue by Category (₹ Lakhs)",
-        labels={'x': 'Revenue (₹ Lakhs)', 'y': 'Category'},
-        color=category_revenue.values,
-        color_continuous_scale='Blues'
-    )
-    fig.update_layout(height=400, showlegend=False)
-    st.plotly_chart(fig, use_container_width=True)
-
-    # Price vs Rating scatter
-    st.markdown("### 💰 Price vs Rating Analysis")
-    fig = px.scatter(
-        df, 
-        x='discounted_price', 
-        y='rating',
-        size='rating_count',
-        color='main_category',
-        title="Product Price vs Customer Rating",
-        labels={'discounted_price': 'Price (₹)', 'rating': 'Rating'},
-        hover_data=['brand', 'estimated_revenue']
-    )
-    fig.update_layout(height=500)
-    st.plotly_chart(fig, use_container_width=True)
 
 def create_category_analysis(df):
     """Create detailed category analysis"""
