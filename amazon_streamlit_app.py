@@ -86,7 +86,7 @@ with col2:
     st.markdown("""
     <div class="metric-card">
         <h3>📅 Date</h3>
-        <p>October 1, 2025</p>
+        <p>October 4, 2025</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -255,116 +255,140 @@ if st.sidebar.checkbox("Apply Filters"):
 # =============================================================================
 
 def create_executive_overview(df):
-    st.subheader("📊 Executive Overview")
-    
-    try:
-        # Safely calculate all metrics
-        total_products = len(df)
-        
-        avg_rating = float(df['rating'].mean()) if 'rating' in df.columns and not df['rating'].isna().all() else 0.0
-        
-        if 'discounted_price_clean' in df.columns:
-            total_revenue = float(df['discounted_price_clean'].sum())
-        else:
-            total_revenue = 0.0
-        
-        if 'rating_count_clean' in df.columns:
-            total_reviews = int(df['rating_count_clean'].sum())
-        else:
-            total_reviews = 0
-        
-        total_categories = int(df['main_category'].nunique()) if 'main_category' in df.columns else 0
-        
-        # Display KPIs
-        col1, col2, col3, col4, col5 = st.columns(5)
-        
-        with col1:
-            st.metric("Total Products", f"{total_products:,}")
-        
-        with col2:
-            st.metric("Avg Rating", f"{avg_rating:.2f} ⭐")
-        
-        with col3:
-            st.metric("Total Value", f"₹{total_revenue/100000:.1f}L")
-        
-        with col4:
-            st.metric("Total Reviews", f"{total_reviews:,}")
-        
-        with col5:
-            st.metric("Categories", f"{total_categories}")
-            
-    except Exception as e:
-        st.error(f"Error calculating metrics: {str(e)}")
-        st.info("Please check your data columns")
+    """Create executive overview dashboard"""
+    st.markdown("## 📊 Executive Overview")
 
+    # Key metrics
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        total_products = len(df)
+        st.metric(
+            label="Total Products",
+            value=f"{total_products:,}",
+            delta=f"{total_products - 800:,} vs baseline"
+        )
+
+    with col2:
+        total_revenue = df['estimated_revenue'].sum()
+        st.metric(
+            label="Total Revenue",
+            value=f"₹{total_revenue/100000:.1f}L",
+            delta=f"₹{(total_revenue * 0.15)/100000:.1f}L potential"
+        )
+
+    with col3:
+        avg_rating = df['rating'].mean()
+        st.metric(
+            label="Average Rating",
+            value=f"{avg_rating:.2f}",
+            delta=f"{avg_rating - 4.0:.2f} above 4.0"
+        )
+
+    with col4:
+        top_category_share = df['main_category'].value_counts().iloc[0] / len(df) * 100
+        st.metric(
+            label="Top Category Share", 
+            value=f"{top_category_share:.1f}%",
+            delta="Concentration risk"
+        )
+
+    # Revenue by category
+    st.markdown("### 🏷️ Revenue Distribution by Category")
+    category_revenue = df.groupby('main_category')['estimated_revenue'].sum().sort_values(ascending=False)
+
+    fig = px.bar(
+        x=category_revenue.values/100000,
+        y=category_revenue.index,
+        orientation='h',
+        title="Revenue by Category (₹ Lakhs)",
+        labels={'x': 'Revenue (₹ Lakhs)', 'y': 'Category'},
+        color=category_revenue.values,
+        color_continuous_scale='Blues'
+    )
+    fig.update_layout(height=400, showlegend=False)
+    st.plotly_chart(fig, use_container_width=True)
+
+    # Price vs Rating scatter
+    st.markdown("### 💰 Price vs Rating Analysis")
+    fig = px.scatter(
+        df, 
+        x='discounted_price', 
+        y='rating',
+        size='rating_count',
+        color='main_category',
+        title="Product Price vs Customer Rating",
+        labels={'discounted_price': 'Price (₹)', 'rating': 'Rating'},
+        hover_data=['brand', 'estimated_revenue']
+    )
+    fig.update_layout(height=500)
+    st.plotly_chart(fig, use_container_width=True)
 
 def create_category_analysis(df):
-    st.subheader("📦 Category Performance Analysis")
-    
-    # Calculate category statistics
+    """Create detailed category analysis"""
+    st.markdown("## 🏷️ Category Performance Analysis")
+
+    # Category performance metrics
     category_stats = df.groupby('main_category').agg({
-        'product_id': 'count',
+        'estimated_revenue': 'sum',
         'rating': 'mean',
-        'rating_count_clean': 'sum',
-        'discounted_price_clean': 'mean',
-        'discount_percentage_clean': 'mean',
-        'estimated_revenue': 'sum'  # ← Add this line!
-    }).reset_index()
-    
-    # Rename columns
-    category_stats.columns = ['Category', 'Products', 'Avg_Rating', 
-                              'Total_Reviews', 'Avg_Price', 'Avg_Discount', 
-                              'Revenue']  # ← Now Revenue exists!
-    
-    # Sort by revenue
+        'rating_count': 'sum', 
+        'discounted_price': 'mean',
+        'discount_percentage': 'mean'
+    }).round(2)
+
+    category_stats.columns = ['Revenue', 'Avg_Rating', 'Total_Ratings', 'Avg_Price', 'Avg_Discount']
     category_stats = category_stats.sort_values('Revenue', ascending=False)
-    
-    # Create visualizations
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        fig1 = px.bar(
-            category_stats.head(10),
-            x='Revenue',
-            y='Category',
-            orientation='h',
-            title='Top 10 Categories by Revenue',
-            color='Revenue',
-            color_continuous_scale='Blues'
-        )
-        fig1.update_layout(height=400)
-        st.plotly_chart(fig1, use_container_width=True)
-    
-    with col2:
-        fig2 = px.bar(
-            category_stats.head(10),
-            x='Avg_Rating',
-            y='Category',
-            orientation='h',
-            title='Average Rating by Category',
-            color='Avg_Rating',
-            color_continuous_scale='RdYlGn',
-            range_x=[0, 5]
-        )
-        fig2.update_layout(height=400)
-        st.plotly_chart(fig2, use_container_width=True)
-    
-    # Display table WITH styling (now it will work!)
-    st.subheader("📊 Category Statistics")
-    
+
+    st.markdown("### 📊 Category Performance Table")
     st.dataframe(
-        category_stats.style
-            .background_gradient(subset=['Revenue', 'Total_Reviews'], cmap='YlGn')
-            .format({
-                'Revenue': '₹{:,.0f}',
-                'Avg_Price': '₹{:,.0f}',
-                'Avg_Discount': '{:.1f}%',
-                'Avg_Rating': '{:.2f}',
-                'Total_Reviews': '{:,.0f}'
-            }),
+        category_stats.style.background_gradient(subset=['Revenue', 'Total_Ratings'])
+        .format({'Revenue': '₹{:,.0f}', 'Avg_Price': '₹{:,.0f}', 'Avg_Discount': '{:.1f}%'}),
         use_container_width=True
     )
 
+    # Category insights
+    top_category = category_stats.index[0]
+    top_revenue = category_stats.loc[top_category, 'Revenue']
+
+    st.markdown(f"""
+    <div class="insight-box">
+        <h3>🔍 Key Category Insights</h3>
+        <ul>
+            <li><strong>{top_category}</strong> dominates with ₹{top_revenue:,.0f} revenue ({top_revenue/category_stats['Revenue'].sum()*100:.1f}%)</li>
+            <li>Top 3 categories generate {category_stats.head(3)['Revenue'].sum()/category_stats['Revenue'].sum()*100:.1f}% of total revenue</li>
+            <li>Average rating varies from {category_stats['Avg_Rating'].min():.2f} to {category_stats['Avg_Rating'].max():.2f} across categories</li>
+        </ul>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Category comparison radar chart
+    st.markdown("### 🎯 Category Performance Radar")
+
+    # Normalize metrics for radar chart
+    top_5_categories = category_stats.head(5)
+    normalized_stats = top_5_categories.copy()
+    for col in normalized_stats.columns:
+        normalized_stats[col] = (normalized_stats[col] - normalized_stats[col].min()) / (normalized_stats[col].max() - normalized_stats[col].min())
+
+    fig = go.Figure()
+
+    for category in normalized_stats.index:
+        fig.add_trace(go.Scatterpolar(
+            r=normalized_stats.loc[category].values,
+            theta=['Revenue', 'Rating', 'Engagement', 'Price', 'Discount'],
+            fill='toself',
+            name=category
+        ))
+
+    fig.update_layout(
+        polar=dict(radialaxis=dict(visible=True, range=[0, 1])),
+        showlegend=True,
+        title="Top 5 Categories Performance Comparison",
+        height=500
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
 
 def create_brand_performance(df):
     """Create brand performance analysis"""
@@ -397,7 +421,7 @@ def create_brand_performance(df):
             color=top_10_brands['Revenue'],
             color_continuous_scale='Viridis'
         )
-        fig.update_xaxes(tickangle=45)
+        fig.update_xaxis(tickangle=45)
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
@@ -485,66 +509,60 @@ def create_customer_insights(df):
     </div>
     """, unsafe_allow_html=True)
 
-# Around line 520-540, replace with:
 def create_pricing_strategy(df):
-    st.subheader("💰 Pricing Strategy Analysis")
-    
-    # Create price categories
-    df['price_category'] = pd.cut(
-        df['discounted_price_clean'],
-        bins=[0, 1000, 5000, 20000, 100000],
-        labels=['Budget (<₹1K)', 'Mid-Range (₹1K-5K)', 
-                'Premium (₹5K-20K)', 'Luxury (>₹20K)']
-    )
-    
-    # Calculate metrics
-    price_stats = df.groupby('price_category').agg({
+    """Create pricing strategy analysis"""
+    st.markdown("## 💰 Pricing Strategy Analysis")
+
+    # Price range analysis
+    st.markdown("### 📊 Revenue by Price Range")
+
+    price_analysis = df.groupby('price_range').agg({
         'product_id': 'count',
+        'estimated_revenue': 'sum',
         'rating': 'mean',
-        'rating_count_clean': 'sum',
-        'discounted_price_clean': 'mean'
-    }).reset_index()
-    
-    price_stats.columns = ['Category', 'Products', 'Avg_Rating', 
-                          'Total_Reviews', 'Avg_Price']
-    
-    # Visualization
+        'discount_percentage': 'mean'
+    }).round(2)
+
+    price_analysis.columns = ['Product_Count', 'Revenue', 'Avg_Rating', 'Avg_Discount']
+
     col1, col2 = st.columns(2)
-    
+
     with col1:
-        fig1 = px.bar(
-            price_stats, 
-            x='Category', 
-            y='Products',
-            title='Products by Price Category',
-            color='Products',
+        fig = px.bar(
+            x=price_analysis.index,
+            y=price_analysis['Revenue']/100000,
+            title="Revenue by Price Range (₹ Lakhs)",
+            color=price_analysis['Revenue'],
             color_continuous_scale='Blues'
         )
-        fig1.update_xaxes(tickangle=45)
-        st.plotly_chart(fig1, use_container_width=True)
-    
-    with col2:
-        fig2 = px.bar(
-            price_stats, 
-            x='Category', 
-            y='Avg_Rating',
-            title='Average Rating by Price Category',
-            color='Avg_Rating',
-            color_continuous_scale='RdYlGn'
-        )
-        fig2.update_xaxes(tickangle=45)
-        st.plotly_chart(fig2, use_container_width=True)
-    
-    # Display table
-    st.dataframe(
-        price_stats.style.format({
-            'Avg_Rating': '{:.2f}',
-            'Avg_Price': '₹{:,.0f}',
-            'Total_Reviews': '{:,.0f}'
-        }),
-        use_container_width=True
-    )
+        st.plotly_chart(fig, use_container_width=True)
 
+    with col2:
+        fig = px.scatter(
+            price_analysis,
+            x='Avg_Discount',
+            y='Avg_Rating',
+            size='Product_Count',
+            hover_name=price_analysis.index,
+            title="Discount vs Rating by Price Range"
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+    # Pricing insights
+    premium_revenue = price_analysis.loc[price_analysis.index.isin(['Premium', 'Luxury']), 'Revenue'].sum()
+    total_revenue = price_analysis['Revenue'].sum()
+    premium_share = (premium_revenue / total_revenue) * 100
+
+    st.markdown(f"""
+    <div class="insight-box">
+        <h3>💰 Pricing Strategy Insights</h3>
+        <ul>
+            <li>Premium + Luxury products generate <strong>{premium_share:.1f}%</strong> of revenue</li>
+            <li>Price-rating correlation: <strong>{df['discounted_price'].corr(df['rating']):.3f}</strong> (weak)</li>
+            <li>Opportunity for premium pricing strategy due to low price sensitivity</li>
+        </ul>
+    </div>
+    """, unsafe_allow_html=True)
 
 def create_recommendations(df):
     """Create strategic recommendations"""
