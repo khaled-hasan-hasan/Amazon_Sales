@@ -3,7 +3,7 @@
 
 | Item               | Details                                                     |
 |--------------------|-------------------------------------------------------------|
-| **Author**         | [Khaled Hasan]                                                 |
+| **Author**         | Khaled Hasan                                                 |
 | **Data Source**    | Kaggle – [Amazon Sales Dataset](https://www.kaggle.com/datasets/karkavelrajaj/amazon-sales-dataset) |
 | **Records**        | 1,525 → 1,500 (cleaned)                                     |
 | **Features**       | 16 original → 26 total                                      |
@@ -64,4 +64,4 @@ amazon-sales-dashboard/
 
 ---
 
-*Built with ❤️ by [Khaled Hasan] for ITI Power BI Development Track – October 2025*  
+*Built with ❤️ by Khaled Hasan for ITI Power BI Development Track – October 2025*  
