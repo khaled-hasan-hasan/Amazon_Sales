@@ -326,69 +326,46 @@ def create_executive_overview(df):
 
 def create_category_analysis(df):
     """Create detailed category analysis"""
-    st.markdown("## 🏷️ Category Performance Analysis")
-
+    st.markdown("## Category Performance Analysis")
+    
     # Category performance metrics
     category_stats = df.groupby('main_category').agg({
         'estimated_revenue': 'sum',
         'rating': 'mean',
-        'rating_count': 'sum', 
+        'rating_count': 'sum',
         'discounted_price': 'mean',
         'discount_percentage': 'mean'
     }).round(2)
-
+    
     category_stats.columns = ['Revenue', 'Avg_Rating', 'Total_Ratings', 'Avg_Price', 'Avg_Discount']
     category_stats = category_stats.sort_values('Revenue', ascending=False)
+    
 
-    st.markdown("### 📊 Category Performance Table")
-    st.dataframe(
-        category_stats.style.background_gradient(subset=['Revenue', 'Total_Ratings'])
-        .format({'Revenue': '₹{:,.0f}', 'Avg_Price': '₹{:,.0f}', 'Avg_Discount': '{:.1f}%'}),
-        use_container_width=True
-    )
+    # Ensure numeric columns are actually numeric
+    category_stats['Revenue'] = pd.to_numeric(category_stats['Revenue'], errors='coerce')
+    category_stats['Total_Ratings'] = pd.to_numeric(category_stats['Total_Ratings'], errors='coerce')
+    
+    # Fill any NaN values with 0
+    category_stats = category_stats.fillna(0)
+    
+    st.markdown("### Category Performance Table")
+    
+    # Apply styling only to confirmed numeric columns
+    try:
+        st.dataframe(
+            category_stats.style.background_gradient(subset=['Revenue', 'Total_Ratings'])
+            .format({
+                'Revenue': '₹{:,.0f}', 
+                'Avg_Price': '₹{:,.0f}', 
+                'Avg_Discount': '{:.1f}%'
+            }),
+            use_container_width=True
+        )
+    except Exception as e:
+        # Fallback: Display without styling
+        st.dataframe(category_stats, use_container_width=True)
+        st.warning("Styling not applied due to data format issues")
 
-    # Category insights
-    top_category = category_stats.index[0]
-    top_revenue = category_stats.loc[top_category, 'Revenue']
-
-    st.markdown(f"""
-    <div class="insight-box">
-        <h3>🔍 Key Category Insights</h3>
-        <ul>
-            <li><strong>{top_category}</strong> dominates with ₹{top_revenue:,.0f} revenue ({top_revenue/category_stats['Revenue'].sum()*100:.1f}%)</li>
-            <li>Top 3 categories generate {category_stats.head(3)['Revenue'].sum()/category_stats['Revenue'].sum()*100:.1f}% of total revenue</li>
-            <li>Average rating varies from {category_stats['Avg_Rating'].min():.2f} to {category_stats['Avg_Rating'].max():.2f} across categories</li>
-        </ul>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Category comparison radar chart
-    st.markdown("### 🎯 Category Performance Radar")
-
-    # Normalize metrics for radar chart
-    top_5_categories = category_stats.head(5)
-    normalized_stats = top_5_categories.copy()
-    for col in normalized_stats.columns:
-        normalized_stats[col] = (normalized_stats[col] - normalized_stats[col].min()) / (normalized_stats[col].max() - normalized_stats[col].min())
-
-    fig = go.Figure()
-
-    for category in normalized_stats.index:
-        fig.add_trace(go.Scatterpolar(
-            r=normalized_stats.loc[category].values,
-            theta=['Revenue', 'Rating', 'Engagement', 'Price', 'Discount'],
-            fill='toself',
-            name=category
-        ))
-
-    fig.update_layout(
-        polar=dict(radialaxis=dict(visible=True, range=[0, 1])),
-        showlegend=True,
-        title="Top 5 Categories Performance Comparison",
-        height=500
-    )
-
-    st.plotly_chart(fig, use_container_width=True)
 
 def create_brand_performance(df):
     """Create brand performance analysis"""
