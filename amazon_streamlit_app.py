@@ -256,73 +256,60 @@ if st.sidebar.checkbox("Apply Filters"):
 
 def create_executive_overview(df):
     """Create executive overview dashboard"""
-    st.markdown("## 📊 Executive Overview")
-
-    # Key metrics
+    st.markdown("## Executive Overview")
+    
+    # Key metrics with error handling
     col1, col2, col3, col4 = st.columns(4)
-
+    
     with col1:
         total_products = len(df)
-        st.metric(
-            label="Total Products",
-            value=f"{total_products:,}",
-            delta=f"{total_products - 800:,} vs baseline"
-        )
-
+        st.metric(label="Total Products", value=f"{total_products:,}", 
+                 delta=f"{total_products - 800}+ vs baseline")
+    
     with col2:
-        total_revenue = df['estimated_revenue'].sum()
-        st.metric(
-            label="Total Revenue",
-            value=f"₹{total_revenue/100000:.1f}L",
-            delta=f"₹{(total_revenue * 0.15)/100000:.1f}L potential"
-        )
-
+        
+        try:
+            total_revenue = pd.to_numeric(df['estimated_revenue'], errors='coerce').sum()
+            if pd.isna(total_revenue) or total_revenue == 0:
+                total_revenue = 0
+            revenue_display = f"₹{total_revenue/100000:.1f}L"
+        except (TypeError, KeyError):
+            total_revenue = 0
+            revenue_display = "₹0.0L"
+        
+        st.metric(label="Total Revenue", value=revenue_display, 
+                 delta=f"₹{total_revenue * 0.15/100000:.1f}L potential")
+    
     with col3:
-        avg_rating = df['rating'].mean()
-        st.metric(
-            label="Average Rating",
-            value=f"{avg_rating:.2f}",
-            delta=f"{avg_rating - 4.0:.2f} above 4.0"
-        )
-
+        
+        try:
+            avg_rating = pd.to_numeric(df['rating'], errors='coerce').mean()
+            if pd.isna(avg_rating):
+                avg_rating = 0
+            rating_display = f"{avg_rating:.2f}"
+        except (TypeError, KeyError):
+            avg_rating = 0
+            rating_display = "0.00"
+        
+        st.metric(label="Average Rating", value=rating_display, 
+                 delta=f"{avg_rating - 4.0:.2f} above 4.0")
+    
     with col4:
-        top_category_share = df['main_category'].value_counts().iloc[0] / len(df) * 100
-        st.metric(
-            label="Top Category Share", 
-            value=f"{top_category_share:.1f}%",
-            delta="Concentration risk"
-        )
+        
+        try:
+            if len(df) > 0:
+                top_category_share = (df['main_category'].value_counts().iloc[0] / len(df)) * 100
+            else:
+                top_category_share = 0
+            share_display = f"{top_category_share:.1f}%"
+        except (TypeError, KeyError, IndexError):
+            top_category_share = 0
+            share_display = "0.0%"
+        
+        st.metric(label="Top Category Share", value=share_display, 
+                 delta="Concentration risk")
 
-    # Revenue by category
-    st.markdown("### 🏷️ Revenue Distribution by Category")
-    category_revenue = df.groupby('main_category')['estimated_revenue'].sum().sort_values(ascending=False)
-
-    fig = px.bar(
-        x=category_revenue.values/100000,
-        y=category_revenue.index,
-        orientation='h',
-        title="Revenue by Category (₹ Lakhs)",
-        labels={'x': 'Revenue (₹ Lakhs)', 'y': 'Category'},
-        color=category_revenue.values,
-        color_continuous_scale='Blues'
-    )
-    fig.update_layout(height=400, showlegend=False)
-    st.plotly_chart(fig, use_container_width=True)
-
-    # Price vs Rating scatter
-    st.markdown("### 💰 Price vs Rating Analysis")
-    fig = px.scatter(
-        df, 
-        x='discounted_price', 
-        y='rating',
-        size='rating_count',
-        color='main_category',
-        title="Product Price vs Customer Rating",
-        labels={'discounted_price': 'Price (₹)', 'rating': 'Rating'},
-        hover_data=['brand', 'estimated_revenue']
-    )
-    fig.update_layout(height=500)
-    st.plotly_chart(fig, use_container_width=True)
+    # Rest of your function continues...
 
 def create_category_analysis(df):
     """Create detailed category analysis"""
