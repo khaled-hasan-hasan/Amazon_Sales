@@ -196,7 +196,7 @@ def load_sample_data():
 def process_data(df):
     """Process and enhance the dataset"""
     # Create additional features
-    df['price_range'] = pd.cut(df['discounted_price'], 
+    df['Price_range'] = pd.cut(df['discounted_price'], 
                               bins=[0, 1000, 5000, 20000, float('inf')],
                               labels=['Budget', 'Mid-range', 'Premium', 'Luxury'])
 
@@ -226,7 +226,7 @@ if st.sidebar.checkbox("Apply Filters"):
     )
 
     # Price range filter
-    price_range = st.sidebar.slider(
+    Price_range = st.sidebar.slider(
         "Price Range (₹)",
         min_value=int(df['discounted_price'].min()),
         max_value=int(df['discounted_price'].max()),
@@ -245,8 +245,8 @@ if st.sidebar.checkbox("Apply Filters"):
     # Apply filters
     df = df[
         (df['main_category'].isin(selected_categories)) &
-        (df['discounted_price'] >= price_range[0]) &
-        (df['discounted_price'] <= price_range[1]) &
+        (df['discounted_price'] >= Price_range[0]) &
+        (df['discounted_price'] <= Price_range[1]) &
         (df['rating'] >= min_rating)
     ]
 
@@ -516,7 +516,7 @@ def create_pricing_strategy(df):
     # Price range analysis
     st.markdown("### 📊 Revenue by Price Range")
 
-    price_analysis = df.groupby('price_range').agg({
+    price_analysis = df.groupby('Price_range').agg({
         'product_id': 'count',
         'estimated_revenue': 'sum',
         'rating': 'mean',
