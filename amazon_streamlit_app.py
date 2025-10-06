@@ -443,59 +443,30 @@ def create_brand_performance(df):
 
 
 def create_customer_insights(df):
-    """Create customer insights dashboard"""
-    st.markdown("## 👥 Customer Engagement Insights")
-
-    # Engagement analysis
-    st.markdown("### ⭐ Rating Distribution Analysis")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        rating_dist = df['rating_category'].value_counts()
-        fig = px.pie(
-            values=rating_dist.values,
-            names=rating_dist.index,
-            title="Product Rating Distribution",
-            color_discrete_sequence=px.colors.qualitative.Set3
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-    with col2:
-        # Engagement score distribution
-        fig = px.histogram(
-            df,
-            x='engagement_score',
-            nbins=30,
-            title="Customer Engagement Score Distribution",
-            labels={'engagement_score': 'Engagement Score', 'count': 'Number of Products'}
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-    # Top engaging products
-    st.markdown("### 🚀 Top 10 Most Engaging Products")
-    top_engagement = df.nlargest(10, 'engagement_score')[
-        ['product_name', 'brand', 'main_category', 'rating', 'rating_count', 'engagement_score']
-    ].round(2)
-
-    st.dataframe(
-        top_engagement.style.background_gradient(subset=['engagement_score'])
-        .format({'engagement_score': '{:.1f}'}),
-        use_container_width=True
-    )
-
-    # Customer insights
-    high_engagement_threshold = df['engagement_score'].quantile(0.9)
-    high_engagement_products = df[df['engagement_score'] >= high_engagement_threshold]
-
+    """Create customer engagement insights"""
+    st.markdown("## Customer Insights")
+    
+    # ✅ Convert revenue to numeric up front
+    df['estimated_revenue'] = pd.to_numeric(df['estimated_revenue'], errors='coerce').fillna(0)
+    
+    # Define high/low engagement products
+    high_engagement_products = df[df['engagement_score'] >= df['engagement_score'].median()]
+    low_engagement_products = df[df['engagement_score'] < df['engagement_score'].median()]
+    
+    # Ensure numeric conversion on filtered subsets
+    high_rev_sum = high_engagement_products['estimated_revenue'].sum()
+    low_rev_sum  = low_engagement_products['estimated_revenue'].sum()
+    
+    # Insights box
     st.markdown(f"""
     <div class="insight-box">
-        <h3>👥 Customer Engagement Insights</h3>
-        <ul>
-            <li><strong>{len(high_engagement_products)}</strong> products (top 10%) drive viral engagement</li>
-            <li>High-engagement products generate <strong>₹{high_engagement_products['estimated_revenue'].sum()/100000:.1f}L</strong> revenue</li>
-            <li>Average engagement score: <strong>{high_engagement_products['engagement_score'].mean():.1f}/100</strong></li>
-        </ul>
+    <h3>📊 Customer Engagement Insights</h3>
+    <ul>
+      <li>Top 50% engagement products: <strong>{len(high_engagement_products)} items</strong></li>
+      <li>High-engagement products generate <strong>₹{high_rev_sum/100000:.1f}L</strong> revenue</li>
+      <li>Low-engagement products generate <strong>₹{low_rev_sum/100000:.1f}L</strong> revenue</li>
+      <li>Engagement correlates {df['engagement_score'].corr(df['rating']):.2f} with rating</li>
+    </ul>
     </div>
     """, unsafe_allow_html=True)
 
