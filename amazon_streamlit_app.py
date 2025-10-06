@@ -501,7 +501,7 @@ def create_customer_insights(df):
 def create_pricing_strategy(df):
     """Create pricing strategy analysis"""
     st.markdown("## 💰 Pricing Strategy Analysis")
-
+    df['estimated_revenue'] = pd.to_numeric(df['estimated_revenue'], errors='coerce').fillna(0)
     # Price range analysis
     st.markdown("### 📊 Revenue by Price Range")
 
@@ -513,7 +513,7 @@ def create_pricing_strategy(df):
     }).round(2)
 
     price_analysis.columns = ['Product_Count', 'Revenue', 'Avg_Rating', 'Avg_Discount']
-
+    price_analysis['Revenue'] = pd.to_numeric(price_analysis['Revenue'], errors='coerce').fillna(0)
     col1, col2 = st.columns(2)
 
     with col1:
