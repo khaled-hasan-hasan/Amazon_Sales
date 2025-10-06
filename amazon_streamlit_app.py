@@ -358,6 +358,10 @@ def create_brand_performance(df):
     """Create brand performance analysis"""
     st.markdown("## Brand Performance Analysis")
     
+   
+    # Clean the estimated_revenue column first
+    df['estimated_revenue'] = pd.to_numeric(df['estimated_revenue'], errors='coerce').fillna(0)
+    
     # Brand performance metrics
     brand_stats = df.groupby('brand').agg({
         'product_id': 'count',
@@ -370,36 +374,72 @@ def create_brand_performance(df):
     brand_stats.columns = ['ProductCount', 'Revenue', 'AvgRating', 'AvgPrice', 'TotalEngagement']
     brand_stats = brand_stats.sort_values('Revenue', ascending=False)
     
+    brand_stats['Revenue'] = pd.to_numeric(brand_stats['Revenue'], errors='coerce').fillna(0)
+    
     st.markdown("### Top 10 Brand Performance")
     top10_brands = brand_stats.head(10)
     
     col1, col2 = st.columns(2)
     
     with col1:
-        fig = px.bar(
-            x=top10_brands.index,
-            y=top10_brands['Revenue']/100000,
-            title='Revenue by Brand (Lakhs)',
-            labels={'x': 'Brand', 'y': 'Revenue (Lakhs)'},
-            color=top10_brands['Revenue'],
-            color_continuous_scale='Viridis'
-        )
         
-        fig.update_layout(xaxis_tickangle=45)
-        st.plotly_chart(fig, use_container_width=True)
+        try:
+            revenue_values = pd.to_numeric(top10_brands['Revenue'], errors='coerce').fillna(0)
+            fig = px.bar(
+                x=top10_brands.index,
+                y=revenue_values/100000,  # Now safe to divide
+                title='Revenue by Brand (Lakhs)',
+                labels={'x': 'Brand', 'y': 'Revenue (Lakhs)'},
+                color=revenue_values,
+                color_continuous_scale='Viridis'
+            )
+            fig.update_layout(xaxis_tickangle=45)
+            st.plotly_chart(fig, use_container_width=True)
+        except Exception as e:
+            st.error(f"Error creating revenue chart: {str(e)}")
+            # Fallback: Show data without chart
+            st.write(top10_brands['Revenue'])
     
     with col2:
-        fig = px.scatter(
-            top10_brands,
-            x='AvgPrice',
-            y='AvgRating',
-            size='ProductCount',
-            color='Revenue',
-            hover_name=top10_brands.index,
-            title='Brand Positioning: Price vs Rating',
-            labels={'AvgPrice': 'Average Price (₹)', 'AvgRating': 'Average Rating'}
-        )
-        st.plotly_chart(fig, use_container_width=True)
+        
+        try:
+            # Ensure all columns are numeric
+            avg_price = pd.to_numeric(top10_brands['AvgPrice'], errors='coerce').fillna(0)
+            avg_rating = pd.to_numeric(top10_brands['AvgRating'], errors='coerce').fillna(0)
+            product_count = pd.to_numeric(top10_brands['ProductCount'], errors='coerce').fillna(1)
+            
+            fig = px.scatter(
+                x=avg_price,
+                y=avg_rating,
+                size=product_count,
+                color=revenue_values,
+                hover_name=top10_brands.index,
+                title='Brand Positioning: Price vs Rating',
+                labels={'x': 'Average Price (₹)', 'y': 'Average Rating'}
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        except Exception as e:
+            st.error(f"Error creating positioning chart: {str(e)}")
+            # Fallback: Show basic data
+            st.dataframe(top10_brands[['AvgPrice', 'AvgRating', 'ProductCount']])
+
+    # Brand insights with safe calculations
+    try:
+        top_brand = brand_stats.index[0]
+        top_brand_revenue = brand_stats.loc[top_brand, 'Revenue']
+        
+        st.markdown(f"""
+        <div class="insight-box">
+        <h3>🎯 Brand Performance Insights</h3>
+        <ul>
+        <li><strong>{top_brand}</strong> leads with ₹{top_brand_revenue:,.0f} revenue from {brand_stats.loc[top_brand, 'ProductCount']} products</li>
+        <li>Top 5 brands control {(brand_stats.head(5)['Revenue'].sum()/brand_stats['Revenue'].sum()*100):.1f}% of total revenue</li>
+        <li>Brand concentration creates partnership opportunities with top performers</li>
+        </ul>
+        </div>
+        """, unsafe_allow_html=True)
+    except Exception as e:
+        st.warning("Could not generate brand insights due to data formatting issues")
 
 
 def create_customer_insights(df):
